@@ -1,0 +1,38 @@
+export const ZONES = [
+  {
+    id: 'creative',
+    name: 'Creative Zone',
+    color: '#ff6b9d',
+    gravity: 0.2,
+    chaos: 0.8,
+    icon: '🎨',
+    position: { x: 0.15, y: 0.15 },
+  },
+  {
+    id: 'focus',
+    name: 'Focus Zone',
+    color: '#4ecdc4',
+    gravity: 1.5,
+    chaos: 0.05,
+    icon: '🎯',
+    position: { x: 0.85, y: 0.15 },
+  },
+  {
+    id: 'organize',
+    name: 'Organize Zone',
+    color: '#95e1d3',
+    gravity: 0.6,
+    chaos: 0.2,
+    icon: '📊',
+    position: { x: 0.15, y: 0.85 },
+  },
+  {
+    id: 'relax',
+    name: 'Relax Zone',
+    color: '#f38181',
+    gravity: 0.1,
+    chaos: 0.3,
+    icon: '🌙',
+    position: { x: 0.85, y: 0.85 },
+  },
+]
