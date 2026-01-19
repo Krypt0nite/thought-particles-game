@@ -5,7 +5,7 @@ import Stats from './ui/Stats'
 import { startEngine } from './engine/Engine'
 import { setupInput } from './engine/Input'
 import { ZONES } from './config/zones'
-import { createZone } from './models/Zone'
+// import { createZone } from './models/Zone'
 import { createThought } from './models/Thought'
 import {
   createAmbientParticle,
@@ -16,7 +16,7 @@ import {
 
 export default function App() {
   const canvasRef = useRef(null)
-  const containerRef = useRef(null)
+  // const containerRef = useRef(null)
   const stateRef = useRef({
     thoughts: [],
     particles: [],

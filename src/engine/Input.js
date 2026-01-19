@@ -4,7 +4,7 @@ import { createParticle } from '../models/Particle'
 
 export function setupInput(canvas, state, callbacks) {
   let lastMousePos = { x: 0, y: 0 }
-  let dragStartPos = { x: 0, y: 0 }
+  // let dragStartPos = { x: 0, y: 0 }
 
   const getMousePos = (e) => {
     const rect = canvas.getBoundingClientRect()
@@ -20,7 +20,7 @@ export function setupInput(canvas, state, callbacks) {
 
   const handleMouseMove = (e) => {
     const pos = getMousePos(e)
-    const prevMouse = state.mouse
+    // const prevMouse = state.mouse
     state.mouse = pos
 
     // Check if hovering over any thought - MORE ACCURATE
@@ -77,7 +77,7 @@ export function setupInput(canvas, state, callbacks) {
 
   const handleMouseDown = (e) => {
     const pos = getMousePos(e)
-    dragStartPos = { ...pos }
+    // dragStartPos = { ...pos }
 
     // Find clicked thought - check if click is INSIDE bubble
     const clicked = state.thoughts.find((t) => {

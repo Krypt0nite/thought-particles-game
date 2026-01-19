@@ -11,7 +11,6 @@ import {
   Link,
   Sparkles,
   Minimize2,
-  X,
 } from 'lucide-react'
 import { useState } from 'react'
 import AddThought from './AddThought'

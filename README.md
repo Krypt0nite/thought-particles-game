@@ -1,70 +1,138 @@
-# Getting Started with Create React App
+# 🌌 Mind Palace - Thought Particles Game
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An interactive physics-based thought visualization tool where your ideas become living particles that interact, attract, and evolve in a cosmic environment.
 
-## Available Scripts
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Krypt0nite/thought-particles-game)
 
-In the project directory, you can run:
+## ✨ Features
 
-### `npm start`
+### 🎨 Interactive Zones
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Creative Zone** 🎨 - High chaos, low gravity for wild ideas
+- **Focus Zone** 🎯 - Strong gravity, minimal chaos for concentrated thinking
+- **Organize Zone** 📊 - Balanced physics for structured thoughts
+- **Relax Zone** 🌙 - Gentle gravity, peaceful atmosphere
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 🧲 Antonym Attraction
 
-### `npm test`
+Opposite thoughts attract each other! Watch "sad" and "happy" particles pull together, or "chaos" and "calm" find balance.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 🎮 Physics Engine
 
-### `npm run build`
+- **Drag & Drop** - Move thoughts with realistic momentum
+- **Collision Detection** - Particles bounce off each other
+- **Zone Return** - Delayed return to home zones (5-10 seconds)
+- **Energy Waves** - Beautiful particle effects
+- **Motion Blur** - Smooth visual feedback
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 💾 Persistence
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Save/Load** - Store your thought layouts
+- **Export** - Download as PNG image
+- **Real-time Stats** - Track thoughts, particles, and zoom
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🚀 Live Demo
 
-### `npm run eject`
+**[View Live Demo](https://thought-particles-game.vercel.app)** _(Once deployed)_
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 🛠️ Tech Stack
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- **React 18** - UI framework
+- **Tailwind CSS** - Styling
+- **HTML5 Canvas** - Rendering engine
+- **Custom Physics Engine** - Particle interactions
+- **Lucide React** - Beautiful icons
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 📦 Installation
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```bash
+# Clone the repository
+git clone https://github.com/Krypt0nite/thought-particles-game.git
 
-## Learn More
+# Navigate to project
+cd thought-particles-game
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Install dependencies
+npm install
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+# Start development server
+npm start
+```
 
-### Code Splitting
+Visit `http://localhost:3000` to see the app running locally.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## 🎯 How to Use
 
-### Analyzing the Bundle Size
+1. **Add Thoughts** - Type in the input field and press Enter
+2. **Choose a Zone** - Select a zone or leave as "Free floating"
+3. **Drag Thoughts** - Click and drag particles around
+4. **Watch Interactions** - Opposite thoughts attract each other!
+5. **Experiment** - Try different physics by moving between zones
+6. **Save Your Work** - Use the Save button to persist your layout
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## ⌨️ Keyboard Shortcuts
 
-### Making a Progressive Web App
+- `Enter` - Add thought
+- `Space` - Pause/Play
+- `Ctrl+S` - Save state
+- `Ctrl+Scroll` - Zoom in/out
+- `Click & Drag` - Move thoughts
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 🎨 Antonym Pairs
 
-### Advanced Configuration
+The following thought pairs attract each other:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+- sad ↔ happy
+- chaos ↔ calm
+- chaos ↔ peace
+- angry ↔ peaceful
+- dark ↔ light
+- stress ↔ relax
+- fear ↔ brave
+- hate ↔ love
 
-### Deployment
+## 🏗️ Project Structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```
+thought-particles-game/
+├── src/
+│   ├── config/         # Physics defaults & zone configs
+│   ├── engine/         # Physics, rendering, input handling
+│   ├── models/         # Thought, particle, zone models
+│   ├── ui/             # React components
+│   ├── hooks/          # Custom React hooks
+│   ├── App.js          # Main application
+│   └── index.js        # Entry point
+├── public/
+└── package.json
+```
 
-### `npm run build` fails to minify
+## 🤝 Contributing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Contributions are welcome! Feel free to:
+
+- Report bugs
+- Suggest features
+- Submit pull requests
+
+## 📄 License
+
+MIT License - feel free to use this project for learning or inspiration!
+
+## 👨‍💻 Author
+
+**Krypt0nite**
+
+- GitHub: [@Krypt0nite](https://github.com/Krypt0nite)
+
+## 🙏 Acknowledgments
+
+- Built with Create React App
+- Physics inspired by particle simulation systems
+- UI design inspired by cosmic themes
+
+---
+
+**Made with ❤️ and lots of ☕**
+
+_"Your thoughts deserve a beautiful space to exist."_
