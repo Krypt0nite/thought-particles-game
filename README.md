@@ -33,7 +33,7 @@ Opposite thoughts attract each other! Watch "sad" and "happy" particles pull tog
 
 ## 🚀 Live Demo
 
-**[View Live Demo](https://thought-particles-game.vercel.app)** _(Once deployed)_
+**[View Live Demo](https://thought-particles-game.vercel.app)** 
 
 ## 🛠️ Tech Stack
 
