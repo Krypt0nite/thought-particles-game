@@ -1,5 +1,6 @@
-// src/engine/Renderer.js - FIXED COLOR FORMATS
+// src/engine/Renderer.js - WITH CONNECTION MODE RENDERING
 import { renderParticles, renderEnergyWaves } from '../models/Particle'
+import { Vector } from '../models/Vector'
 
 export function render(ctx, canvas, state) {
   const camera = state.camera || { x: 0, y: 0, zoom: 1 }
@@ -44,9 +45,8 @@ export function render(ctx, canvas, state) {
     renderEnergyWaves(ctx, state.energyWaves)
   }
 
-  // ENHANCED ZONE RENDERING
+  // Zone rendering
   state.zones.forEach((z) => {
-    // Stronger zone glow
     const zoneGradient = ctx.createRadialGradient(
       z.x,
       z.y,
@@ -56,7 +56,6 @@ export function render(ctx, canvas, state) {
       z.radius * 1.5,
     )
 
-    // Convert HSL to rgba for gradient stops
     const baseColor = z.color
     zoneGradient.addColorStop(0, `${baseColor}40`)
     zoneGradient.addColorStop(0.5, `${baseColor}20`)
@@ -66,11 +65,9 @@ export function render(ctx, canvas, state) {
     ctx.arc(z.x, z.y, z.radius * 1.3, 0, Math.PI * 2)
     ctx.fill()
 
-    // TRIPLE RING EFFECT
     const pulsePhase = Date.now() * 0.001
     const pulse = Math.sin(pulsePhase + z.x) * 0.3 + 0.7
 
-    // Outer ring (glow)
     ctx.strokeStyle = z.color
     ctx.lineWidth = 6
     ctx.shadowBlur = 25
@@ -80,7 +77,6 @@ export function render(ctx, canvas, state) {
     ctx.arc(z.x, z.y, z.radius + 8, 0, Math.PI * 2)
     ctx.stroke()
 
-    // Middle ring (main)
     ctx.lineWidth = 5
     ctx.shadowBlur = 20
     ctx.globalAlpha = pulse
@@ -90,7 +86,6 @@ export function render(ctx, canvas, state) {
     ctx.stroke()
     ctx.setLineDash([])
 
-    // Inner ring (bright)
     ctx.lineWidth = 4
     ctx.shadowBlur = 15
     ctx.globalAlpha = pulse * 0.9
@@ -101,7 +96,6 @@ export function render(ctx, canvas, state) {
     ctx.shadowBlur = 0
     ctx.globalAlpha = 1
 
-    // Zone icon with strong glow
     ctx.shadowBlur = 20
     ctx.shadowColor = z.color
     ctx.font = '48px Arial'
@@ -113,7 +107,6 @@ export function render(ctx, canvas, state) {
     ctx.shadowBlur = 0
     ctx.globalAlpha = 1
 
-    // Zone name
     ctx.font = 'bold 18px Inter, sans-serif'
     ctx.fillStyle = '#ffffff'
     ctx.shadowBlur = 8
@@ -124,20 +117,135 @@ export function render(ctx, canvas, state) {
     ctx.globalAlpha = 1
   })
 
-  // Connections
-  if (state.showConnections && state.connections) {
+  // Draw ALL connections (both AI and manual)
+  if (
+    state.connections &&
+    state.connections.length > 0 &&
+    state.showConnections
+  ) {
     state.connections.forEach((conn) => {
       const t1 = state.thoughts[conn.from]
       const t2 = state.thoughts[conn.to]
       if (t1 && t2) {
-        ctx.strokeStyle = 'rgba(100, 150, 255, 0.4)'
-        ctx.lineWidth = 2
+        const dist = Vector.dist(t1, t2)
+
+        // Different styles for manual vs AI connections
+        const isManual = conn.type === 'manual'
+        const alpha = isManual ? 0.7 : Math.max(0, 1 - dist / 200) * 0.6
+
+        // Color based on connection type
+        let lineColor
+        if (isManual) {
+          lineColor = conn.color || '#6366f1'
+        } else if (conn.type === 'antonym') {
+          lineColor = `rgba(147, 51, 234, ${alpha})`
+        } else {
+          lineColor = `rgba(100, 150, 255, ${alpha})`
+        }
+
+        ctx.strokeStyle = lineColor
+        ctx.lineWidth = isManual ? 3 : 2 + (conn.strength || 0) * 2
+
+        // Glow for manual connections
+        if (isManual) {
+          ctx.shadowBlur = 8
+          ctx.shadowColor = lineColor
+        }
+
+        // Animated dashed line
+        const dashOffset = (Date.now() * 0.01) % 20
+        ctx.setLineDash(isManual ? [] : [5, 5])
+        ctx.lineDashOffset = dashOffset
+
         ctx.beginPath()
         ctx.moveTo(t1.x, t1.y)
         ctx.lineTo(t2.x, t2.y)
         ctx.stroke()
+        ctx.setLineDash([])
+        ctx.shadowBlur = 0
+
+        // Connection midpoint
+        const midX = (t1.x + t2.x) / 2
+        const midY = (t1.y + t2.y) / 2
+
+        ctx.fillStyle = lineColor
+        ctx.beginPath()
+        ctx.arc(midX, midY, isManual ? 6 : 4, 0, Math.PI * 2)
+        ctx.fill()
+
+        // Draw label for manual connections
+        if (isManual && conn.label) {
+          const labelMap = {
+            related: '🔗 Related',
+            causes: '➡️ Causes',
+            contradicts: '⚡ Contradicts',
+            supports: '💪 Supports',
+            reminds: '💭 Reminds',
+          }
+          const displayLabel = labelMap[conn.label] || conn.label
+
+          ctx.font = '11px Inter, sans-serif'
+          const textWidth = ctx.measureText(displayLabel).width
+          const padding = 8
+          const pillWidth = textWidth + padding * 2
+          const pillHeight = 22
+
+          // Background pill
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+          ctx.beginPath()
+          ctx.roundRect(
+            midX - pillWidth / 2,
+            midY + 12,
+            pillWidth,
+            pillHeight,
+            11,
+          )
+          ctx.fill()
+
+          // Border
+          ctx.strokeStyle = lineColor
+          ctx.lineWidth = 1
+          ctx.stroke()
+
+          // Text
+          ctx.fillStyle = '#ffffff'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(displayLabel, midX, midY + 23)
+        }
       }
     })
+  }
+
+  // CONNECTION MODE PREVIEW LINE
+  if (
+    state.connectionModeActive &&
+    state.connectionModePendingThought &&
+    state.mouse
+  ) {
+    const startThought = state.connectionModePendingThought
+
+    ctx.save()
+
+    // Animated dashed line to cursor
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.7)'
+    ctx.lineWidth = 2
+    ctx.setLineDash([8, 8])
+    ctx.lineDashOffset = -(Date.now() * 0.05) % 16
+
+    ctx.beginPath()
+    ctx.moveTo(startThought.x, startThought.y)
+    ctx.lineTo(state.mouse.x, state.mouse.y)
+    ctx.stroke()
+
+    // End point indicator
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.4)'
+    ctx.setLineDash([])
+    ctx.beginPath()
+    ctx.arc(state.mouse.x, state.mouse.y, 12, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.restore()
   }
 
   // Particles
@@ -145,12 +253,14 @@ export function render(ctx, canvas, state) {
     renderParticles(ctx, state.particles)
   }
 
-  // Thoughts with FIXED color handling
-  state.thoughts.forEach((t) => {
+  // Thoughts
+  state.thoughts.forEach((t, index) => {
     const speed = Math.sqrt(t.vx * t.vx + t.vy * t.vy)
-
-    // Convert HSL color to hex or rgba for proper usage
     const baseColor = t.color
+
+    // Check if this thought is pending in connection mode
+    const isPending =
+      state.connectionModeActive && state.connectionModePendingIndex === index
 
     // Motion blur
     if (speed > 1) {
@@ -170,6 +280,31 @@ export function render(ctx, canvas, state) {
       ctx.globalAlpha = 1
     }
 
+    // PENDING THOUGHT HIGHLIGHT (connection mode)
+    if (isPending) {
+      const pulse = Math.sin(Date.now() * 0.008) * 0.3 + 0.7
+
+      // Outer pulsing ring
+      ctx.strokeStyle = '#8b5cf6'
+      ctx.lineWidth = 4
+      ctx.globalAlpha = pulse
+      ctx.shadowBlur = 20
+      ctx.shadowColor = '#8b5cf6'
+      ctx.beginPath()
+      ctx.arc(t.x, t.y, t.size + 12, 0, Math.PI * 2)
+      ctx.stroke()
+
+      // Inner glow
+      ctx.globalAlpha = pulse * 0.3
+      ctx.fillStyle = '#8b5cf6'
+      ctx.beginPath()
+      ctx.arc(t.x, t.y, t.size + 8, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.shadowBlur = 0
+      ctx.globalAlpha = 1
+    }
+
     // Outer glow
     if (t.glow > 0 || speed > 1) {
       const glowGradient = ctx.createRadialGradient(
@@ -181,7 +316,6 @@ export function render(ctx, canvas, state) {
         t.size * 2,
       )
 
-      // Use rgba instead of appending opacity to HSL
       const glowAlpha = Math.max(t.glow || 0, Math.min(speed * 0.4, 0.7))
       glowGradient.addColorStop(0, baseColor)
       glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
@@ -194,7 +328,7 @@ export function render(ctx, canvas, state) {
       ctx.globalAlpha = 1
     }
 
-    // Main bubble gradient
+    // Main bubble
     const bubbleGradient = ctx.createRadialGradient(
       t.x - t.size * 0.3,
       t.y - t.size * 0.3,
@@ -204,7 +338,6 @@ export function render(ctx, canvas, state) {
       t.size,
     )
 
-    // Create proper color stops
     bubbleGradient.addColorStop(0, baseColor)
     bubbleGradient.addColorStop(0.7, baseColor)
     bubbleGradient.addColorStop(1, baseColor)
@@ -229,8 +362,8 @@ export function render(ctx, canvas, state) {
     ctx.fill()
 
     // Border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 2
+    ctx.strokeStyle = isPending ? '#8b5cf6' : 'rgba(255, 255, 255, 0.3)'
+    ctx.lineWidth = isPending ? 3 : 2
     ctx.beginPath()
     ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2)
     ctx.stroke()

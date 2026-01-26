@@ -1,14 +1,12 @@
-// src/engine/Input.js - FIXED CURSOR DETECTION
+// src/engine/Input.js - WITH CONNECTION MODE SUPPORT
 import { Vector } from '../models/Vector'
 import { createParticle } from '../models/Particle'
 
 export function setupInput(canvas, state, callbacks) {
   let lastMousePos = { x: 0, y: 0 }
-  // let dragStartPos = { x: 0, y: 0 }
 
   const getMousePos = (e) => {
     const rect = canvas.getBoundingClientRect()
-    // More accurate position calculation
     const scaleX = canvas.width / rect.width
     const scaleY = canvas.height / rect.height
 
@@ -18,29 +16,42 @@ export function setupInput(canvas, state, callbacks) {
     }
   }
 
+  // Find thought at position
+  const findThoughtAtPos = (pos) => {
+    for (let i = state.thoughts.length - 1; i >= 0; i--) {
+      const t = state.thoughts[i]
+      const d = Vector.dist(pos, t)
+      if (d <= t.size) {
+        return { thought: t, index: i }
+      }
+    }
+    return null
+  }
+
   const handleMouseMove = (e) => {
     const pos = getMousePos(e)
-    // const prevMouse = state.mouse
     state.mouse = pos
 
-    // Check if hovering over any thought - MORE ACCURATE
+    // Check if hovering over any thought
     let hovering = false
     state.thoughts.forEach((t) => {
       const d = Vector.dist(pos, t)
-      // Check if mouse is INSIDE the thought bubble (not just near it)
       if (d <= t.size) {
         hovering = true
         t.glow = 0.5
-        canvas.style.cursor = 'grab' // Show grab cursor
+        canvas.style.cursor = callbacks.connectionMode?.isActive
+          ? 'pointer'
+          : 'grab'
       }
     })
 
     if (!hovering && !state.draggedThought) {
-      canvas.style.cursor = 'default'
+      canvas.style.cursor = callbacks.connectionMode?.isActive
+        ? 'crosshair'
+        : 'default'
     }
 
     if (state.draggedThought) {
-      // Calculate drag velocity
       const dragVelocity = {
         x: pos.x - lastMousePos.x,
         y: pos.y - lastMousePos.y,
@@ -49,22 +60,17 @@ export function setupInput(canvas, state, callbacks) {
         dragVelocity.x * dragVelocity.x + dragVelocity.y * dragVelocity.y,
       )
 
-      // Update position directly to cursor
       state.draggedThought.x = pos.x
       state.draggedThought.y = pos.y
-
-      // Store drag velocity
       state.draggedThought.vx = dragVelocity.x
       state.draggedThought.vy = dragVelocity.y
 
       canvas.style.cursor = 'grabbing'
 
-      // Break attraction with speed
       if (dragSpeed > 5) {
         state.draggedThought.breakBond = 10
       }
 
-      // Trail particles
       if (Math.random() < 0.3) {
         state.particles.push(
           createParticle(pos.x, pos.y, state.draggedThought.color),
@@ -77,25 +83,30 @@ export function setupInput(canvas, state, callbacks) {
 
   const handleMouseDown = (e) => {
     const pos = getMousePos(e)
-    // dragStartPos = { ...pos }
+    const found = findThoughtAtPos(pos)
 
-    // Find clicked thought - check if click is INSIDE bubble
-    const clicked = state.thoughts.find((t) => {
-      const distance = Vector.dist(pos, t)
-      return distance <= t.size
-    })
+    // If in connection mode, handle connection
+    if (callbacks.connectionMode?.isActive && found) {
+      const handled = callbacks.connectionMode.handleThoughtClick(
+        found.thought,
+        found.index,
+      )
+      if (handled) return // Don't process normal drag
+    }
 
-    if (clicked) {
-      state.draggedThought = clicked
-      clicked.glow = 1
-      clicked.returning = false // Stop returning to zone
-      clicked.returnDelay = 0 // Reset return delay
+    // Normal drag behavior
+    if (found && !callbacks.connectionMode?.isActive) {
+      state.draggedThought = found.thought
+      found.thought.glow = 1
+      found.thought.returning = false
+      found.thought.returnDelay = 0
       canvas.style.cursor = 'grabbing'
 
-      // Grab particles
+      if (callbacks.onThoughtGrabbed) callbacks.onThoughtGrabbed()
+
       for (let i = 0; i < 8; i++) {
         state.particles.push(
-          createParticle(clicked.x, clicked.y, clicked.color),
+          createParticle(found.thought.x, found.thought.y, found.thought.color),
         )
       }
     }
@@ -106,33 +117,32 @@ export function setupInput(canvas, state, callbacks) {
       const thought = state.draggedThought
       thought.glow = 0.3
 
-      // Calculate release velocity for momentum
       const releaseVelocity = {
         x: state.mouse.x - lastMousePos.x,
         y: state.mouse.y - lastMousePos.y,
       }
 
-      // Apply momentum
       thought.vx = releaseVelocity.x * 2
       thought.vy = releaseVelocity.y * 2
 
-      // If thought has a zone, calculate return delay based on distance
       if (thought.zone) {
         const homeZone = state.zones.find((z) => z.id === thought.zone)
         if (homeZone) {
           const distanceFromZone = Vector.dist(thought, homeZone)
-          // Return delay: 5-10 seconds based on distance
-          // Closer = shorter delay, farther = longer delay
           const maxDistance = Math.max(window.innerWidth, window.innerHeight)
           const normalizedDistance = Math.min(distanceFromZone / maxDistance, 1)
-          thought.returnDelay = 5 + normalizedDistance * 5 // 5 to 10 seconds
+          thought.returnDelay = 5 + normalizedDistance * 5
           thought.returnStartTime = Date.now()
-          thought.returning = false // Will start returning after delay
+          thought.returning = false
         }
       }
+
+      if (callbacks.onThoughtReleased) callbacks.onThoughtReleased()
     }
     state.draggedThought = null
-    canvas.style.cursor = 'default'
+    canvas.style.cursor = callbacks.connectionMode?.isActive
+      ? 'crosshair'
+      : 'default'
   }
 
   const handleWheel = (e) => {
@@ -147,10 +157,10 @@ export function setupInput(canvas, state, callbacks) {
 
   const handleDoubleClick = (e) => {
     const pos = getMousePos(e)
-    const clicked = state.thoughts.find((t) => Vector.dist(pos, t) <= t.size)
+    const found = findThoughtAtPos(pos)
 
-    if (clicked && callbacks.onThoughtDoubleClick) {
-      callbacks.onThoughtDoubleClick(clicked)
+    if (found && callbacks.onThoughtDoubleClick) {
+      callbacks.onThoughtDoubleClick(found.thought)
     }
   }
 
@@ -171,6 +181,11 @@ export function setupInput(canvas, state, callbacks) {
     if (e.ctrlKey && e.code === 'KeyS') {
       e.preventDefault()
       if (callbacks.onSave) callbacks.onSave()
+    }
+
+    // Escape to cancel connection mode
+    if (e.code === 'Escape' && callbacks.connectionMode?.isActive) {
+      callbacks.connectionMode.toggleConnectionMode()
     }
   }
 

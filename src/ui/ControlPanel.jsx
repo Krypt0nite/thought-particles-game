@@ -1,4 +1,4 @@
-// src/ui/ControlPanel.jsx - SIMPLIFIED (NO DRAGGING)
+// src/ui/ControlPanel.jsx - UPDATED WITH NEW FEATURES
 import {
   Brain,
   Pause,
@@ -11,6 +11,12 @@ import {
   Link,
   Sparkles,
   Minimize2,
+  Volume2,
+  Users,
+  BarChart3,
+  Lightbulb,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useState } from 'react'
 import AddThought from './AddThought'
@@ -31,9 +37,18 @@ export default function ControlPanel({
   onLoad,
   onExport,
   onToggleConnections,
+  soundEnabled,
+  onToggleSound,
   zoom,
   onZoomIn,
   onZoomOut,
+  // NEW PROPS
+  multiplayerEnabled = false,
+  onToggleMultiplayer,
+  showSuggestions = true,
+  onToggleSuggestions,
+  showAnalytics = false,
+  onToggleAnalytics,
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
 
@@ -86,7 +101,11 @@ export default function ControlPanel({
                 className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-700 rounded"
                 title={show ? 'Collapse' : 'Expand'}
               >
-                {show ? '←' : '→'}
+                {show ? (
+                  <ChevronLeft className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
@@ -155,19 +174,82 @@ export default function ControlPanel({
               </div>
             </div>
 
+            {/* NEW - Feature Toggles */}
+            <div className="mt-4">
+              <label className="text-gray-300 text-sm block mb-2">
+                Features
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {/* AI Suggestions Toggle */}
+                <button
+                  onClick={onToggleSuggestions}
+                  className={`px-3 py-2.5 ${
+                    showSuggestions
+                      ? 'bg-purple-600/40 border-purple-500/50'
+                      : 'bg-gray-700/30 border-gray-600/30'
+                  } border text-white rounded-lg transition-all flex items-center justify-center gap-2 hover:scale-[1.02]`}
+                  title="Toggle AI Suggestions"
+                >
+                  <Lightbulb
+                    className={`w-4 h-4 ${
+                      showSuggestions ? 'text-purple-300' : 'text-gray-400'
+                    }`}
+                  />
+                  <span className="text-sm">AI</span>
+                </button>
+
+                {/* Analytics Toggle */}
+                <button
+                  onClick={onToggleAnalytics}
+                  className={`px-3 py-2.5 ${
+                    showAnalytics
+                      ? 'bg-blue-600/40 border-blue-500/50'
+                      : 'bg-gray-700/30 border-gray-600/30'
+                  } border text-white rounded-lg transition-all flex items-center justify-center gap-2 hover:scale-[1.02]`}
+                  title="Toggle Analytics"
+                >
+                  <BarChart3
+                    className={`w-4 h-4 ${
+                      showAnalytics ? 'text-blue-300' : 'text-gray-400'
+                    }`}
+                  />
+                  <span className="text-sm">Stats</span>
+                </button>
+
+                {/* Multiplayer Toggle */}
+                <button
+                  onClick={onToggleMultiplayer}
+                  className={`px-3 py-2.5 ${
+                    multiplayerEnabled
+                      ? 'bg-green-600/40 border-green-500/50'
+                      : 'bg-gray-700/30 border-gray-600/30'
+                  } border text-white rounded-lg transition-all flex items-center justify-center gap-2 hover:scale-[1.02]`}
+                  title="Toggle Multiplayer"
+                >
+                  <Users
+                    className={`w-4 h-4 ${
+                      multiplayerEnabled ? 'text-green-300' : 'text-gray-400'
+                    }`}
+                  />
+                  <span className="text-sm">Multi</span>
+                </button>
+
+                {/* Connections Toggle */}
+                <button
+                  onClick={onToggleConnections}
+                  className="px-3 py-2.5 bg-gray-700/30 hover:bg-gray-600/40 border border-gray-600/30 text-white rounded-lg transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+                  title="Toggle Connection Lines"
+                >
+                  <Link className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm">Links</span>
+                </button>
+              </div>
+            </div>
+
             {/* Tools Grid */}
             <div className="mt-4">
               <label className="text-gray-300 text-sm block mb-2">Tools</label>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={onToggleConnections}
-                  className="px-3 py-2.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-white rounded-lg transition-all flex items-center justify-center gap-2"
-                  title="Toggle Connection Lines"
-                >
-                  <Link className="w-4 h-4" />
-                  <span className="text-sm">Links</span>
-                </button>
-
                 <button
                   onClick={onExport}
                   className="px-3 py-2.5 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-all flex items-center justify-center gap-2"
@@ -197,6 +279,24 @@ export default function ControlPanel({
               </div>
             </div>
 
+            {/* Sound Toggle */}
+            <div className="mt-4">
+              <label className="text-gray-300 text-sm block mb-2">Audio</label>
+              <button
+                onClick={onToggleSound}
+                className={`w-full px-3 py-2.5 ${
+                  soundEnabled
+                    ? 'bg-green-600/20 border-green-500/30'
+                    : 'bg-gray-700/50 border-gray-600/30'
+                } hover:bg-green-600/40 border text-white rounded-lg transition-all flex items-center justify-center gap-2`}
+              >
+                <Volume2 className="w-4 h-4" />
+                <span className="text-sm">
+                  Sound {soundEnabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            </div>
+
             {/* Keyboard Shortcuts */}
             <div className="mt-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
               <h3 className="text-xs font-semibold text-purple-400 mb-2">
@@ -217,11 +317,7 @@ export default function ControlPanel({
                 </div>
                 <div className="flex justify-between">
                   <span>Zoom</span>
-                  <code className="text-gray-300">Ctrl+Scroll</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pan canvas</span>
-                  <code className="text-gray-300">Drag</code>
+                  <code className="text-gray-300">Scroll</code>
                 </div>
               </div>
             </div>
@@ -233,10 +329,10 @@ export default function ControlPanel({
               </h3>
               <ul className="text-xs text-gray-400 space-y-1">
                 <li>• Drag thoughts to move them</li>
-                <li>• Ctrl+Scroll to zoom</li>
-                <li>• Use scrollbars to pan</li>
-                <li>• Zones have unique physics</li>
-                <li>• Thoughts bounce off each other</li>
+                <li>• AI suggests related thoughts</li>
+                <li>• Enable multiplayer to collaborate</li>
+                <li>• Check analytics for patterns</li>
+                <li>• Opposite thoughts attract!</li>
               </ul>
             </div>
           </div>

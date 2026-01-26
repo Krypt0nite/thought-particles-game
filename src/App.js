@@ -1,11 +1,16 @@
-// src/App.js - SIMPLIFIED, NO SCROLLBARS, PERFECT DEFAULT VIEW
-import { useRef, useState, useEffect } from 'react'
+// src/App.js - COMPLETE FIXED VERSION WITH CONNECTION MODE
+import { useRef, useState, useEffect, useCallback } from 'react'
 import ControlPanel from './ui/ControlPanel'
 import Stats from './ui/Stats'
+import AiSuggestionsPanel from './ui/AiSuggestionsPanel'
+import AnalyticsPanel from './ui/AnalyticsPanel'
+import MultiPlayerStatus from './ui/MultiPlayerStatus'
+import ConnectionMode, { ConnectionLabelModal } from './ui/ConnectionMode'
 import { startEngine } from './engine/Engine'
 import { setupInput } from './engine/Input'
+import { setupTouchHandlers } from './utils/TouchHandlers'
+import { soundEffects } from './utils/SoundEffects'
 import { ZONES } from './config/zones'
-// import { createZone } from './models/Zone'
 import { createThought } from './models/Thought'
 import {
   createAmbientParticle,
@@ -14,9 +19,16 @@ import {
   updateEnergyWaves,
 } from './models/Particle'
 
+// AI & Analytics
+import { getAISuggestions, findThoughtConnections } from './utils/AiSuggestions'
+import { analyzeThoughts } from './utils/AnalyticsEngine'
+
+// Multiplayer & Connection Mode
+import useMultiplayer from './hooks/UseMultiplayer'
+import useConnectionMode from './hooks/useConnectionMode'
+
 export default function App() {
   const canvasRef = useRef(null)
-  // const containerRef = useRef(null)
   const stateRef = useRef({
     thoughts: [],
     particles: [],
@@ -27,7 +39,7 @@ export default function App() {
     draggedThought: null,
     selectedThought: null,
     camera: { x: 0, y: 0, zoom: 1 },
-    showConnections: false,
+    showConnections: true,
   })
   const paramsRef = useRef({
     gravity: 0.5,
@@ -37,6 +49,7 @@ export default function App() {
   })
   const runningRef = useRef(true)
 
+  // UI State
   const [showControls, setShowControls] = useState(true)
   const [isRunning, setIsRunning] = useState(true)
   const [thoughtText, setThoughtText] = useState('')
@@ -44,53 +57,139 @@ export default function App() {
   const [thoughtsCount, setThoughtsCount] = useState(0)
   const [particlesCount, setParticlesCount] = useState(0)
   const [zoom, setZoom] = useState(1)
+  const [soundEnabled, setSoundEnabled] = useState(true)
 
-  // Initialize canvas - EXACTLY viewport size, no scrollbars
+  // AI Suggestions State
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(true)
+
+  // Analytics State
+  const [analytics, setAnalytics] = useState(null)
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [sessionCount, setSessionCount] = useState(1)
+
+  // Multiplayer State
+  const [multiplayerEnabled, setMultiplayerEnabled] = useState(false)
+
+  // Connection Mode Hook
+  const connectionMode = useConnectionMode(stateRef, {
+    onConnectionCreated: (connection) => {
+      console.log('Connection created:', connection)
+      if (soundEnabled) {
+        soundEffects.playTone(800, 0.1, 'sine', 0.2)
+        setTimeout(() => soundEffects.playTone(1000, 0.1, 'sine', 0.15), 50)
+      }
+    },
+    onSoundEffect: (type) => {
+      if (!soundEnabled) return
+      if (type === 'select') soundEffects.thoughtGrabbed()
+      if (type === 'connect') soundEffects.thoughtReleased()
+    },
+  })
+
+  // Multiplayer Hook
+  const multiplayer = useMultiplayer(multiplayerEnabled, {
+    roomId: 'mind-palace-room',
+    userName: 'You',
+    userColor: '#9b59b6',
+    onUserJoined: (user) => {
+      console.log(`${user.name} joined the room`)
+      if (soundEnabled) soundEffects.zoneEntered('focus')
+    },
+    onUserLeft: (user) => {
+      console.log(`${user.name} left the room`)
+    },
+    onThoughtReceived: (thought) => {
+      const canvas = canvasRef.current
+      if (canvas) {
+        const newThought = createThought({
+          x: canvas.width * 0.5 + (Math.random() - 0.5) * 200,
+          y: canvas.height * 0.5 + (Math.random() - 0.5) * 200,
+          text: thought.text,
+          zone: null,
+        })
+        newThought.sharedBy = thought.sharedBy
+        stateRef.current.thoughts.push(newThought)
+      }
+    },
+  })
+
+  // AI SUGGESTIONS - Update when thoughts change
+  useEffect(() => {
+    const thoughts = stateRef.current.thoughts
+    const newSuggestions = getAISuggestions(thoughts, {
+      maxSuggestions: 5,
+      includeBalanceSuggestions: true,
+    })
+    setSuggestions(newSuggestions)
+  }, [thoughtsCount])
+
+  // ANALYTICS - Update when thoughts change
+  useEffect(() => {
+    const thoughts = stateRef.current.thoughts
+    const newAnalytics = analyzeThoughts(thoughts, {
+      sessions: sessionCount,
+      includeTimeline: true,
+      includeMoodAnalysis: true,
+    })
+    setAnalytics(newAnalytics)
+  }, [thoughtsCount, sessionCount])
+
+  // AUTO-CONNECTIONS - Find connections using AI
+  useEffect(() => {
+    const thoughts = stateRef.current.thoughts
+    if (thoughts.length >= 2) {
+      const aiConnections = findThoughtConnections(thoughts)
+      const existingConnections = stateRef.current.connections || []
+      const newConnections = aiConnections.filter(
+        (conn) =>
+          !existingConnections.some(
+            (ec) =>
+              (ec.from === conn.from && ec.to === conn.to) ||
+              (ec.from === conn.to && ec.to === conn.from),
+          ),
+      )
+      stateRef.current.connections = [...existingConnections, ...newConnections]
+    }
+  }, [thoughtsCount])
+
+  // Initialize canvas and zones
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
     const updateSize = () => {
-      // Canvas is EXACTLY the viewport size
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
 
-      // Control panel width
       const controlPanelWidth = 400
-
-      // Available space for zones
       const availableWidth = canvas.width - controlPanelWidth
       const availableHeight = canvas.height
 
-      // Zone grid - 2x2 layout
       const horizontalSpacing = availableWidth / 2
       const verticalSpacing = availableHeight / 2
       const startX = controlPanelWidth + 50
       const startY = 50
 
       stateRef.current.zones = [
-        // Creative Zone - Top Left
         {
           ...ZONES[0],
           x: startX + horizontalSpacing * 0.5,
           y: startY + verticalSpacing * 0.5,
           radius: Math.min(120, verticalSpacing * 0.35),
         },
-        // Focus Zone - Top Right
         {
           ...ZONES[1],
           x: startX + horizontalSpacing * 1.5,
           y: startY + verticalSpacing * 0.5,
           radius: Math.min(120, verticalSpacing * 0.35),
         },
-        // Organize Zone - Bottom Left
         {
           ...ZONES[2],
           x: startX + horizontalSpacing * 0.5,
           y: startY + verticalSpacing * 1.5,
           radius: Math.min(120, verticalSpacing * 0.35),
         },
-        // Relax Zone - Bottom Right
         {
           ...ZONES[3],
           x: startX + horizontalSpacing * 1.5,
@@ -102,25 +201,36 @@ export default function App() {
 
     updateSize()
     window.addEventListener('resize', updateSize)
+    setSessionCount((prev) => prev + 1)
 
     return () => window.removeEventListener('resize', updateSize)
   }, [])
 
-  // Browser zoom handling - prevent white background
-  useEffect(() => {
-    const handleResize = () => {
-      const canvas = canvasRef.current
-      if (canvas) {
-        canvas.width = window.innerWidth
-        canvas.height = window.innerHeight
-      }
-    }
+  // Callbacks
+  const saveState = useCallback(() => {
+    const data = JSON.stringify({
+      thoughts: stateRef.current.thoughts,
+      connections: stateRef.current.connections,
+      sessionCount,
+    })
+    localStorage.setItem('mindPalaceState', data)
+    alert('💾 State saved!')
+  }, [sessionCount])
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+  const toggleRunning = useCallback(() => {
+    runningRef.current = !runningRef.current
+    setIsRunning(runningRef.current)
   }, [])
 
-  // Setup input handlers with dragging
+  const deleteThought = useCallback((thought) => {
+    const index = stateRef.current.thoughts.indexOf(thought)
+    if (index > -1) {
+      stateRef.current.thoughts.splice(index, 1)
+      setThoughtsCount(stateRef.current.thoughts.length)
+    }
+  }, [])
+
+  // Setup input handlers
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -130,9 +240,25 @@ export default function App() {
         const limited = Math.min(1.3, newZoom)
         setZoom(limited)
       },
-      onTogglePause: () => toggleRunning(),
-      onSave: () => saveState(),
-      onDeleteThought: (thought) => deleteThought(thought),
+      onTogglePause: toggleRunning,
+      onSave: saveState,
+      onDeleteThought: deleteThought,
+      onThoughtGrabbed: () => soundEnabled && soundEffects.thoughtGrabbed(),
+      onThoughtReleased: () => soundEnabled && soundEffects.thoughtReleased(),
+      // Connection mode integration
+      connectionMode: connectionMode,
+    })
+
+    return cleanup
+  }, [soundEnabled, toggleRunning, saveState, deleteThought, connectionMode])
+
+  // Setup touch handlers
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const cleanup = setupTouchHandlers(canvas, stateRef.current, {
+      onZoomChange: (newZoom) => setZoom(newZoom),
     })
 
     return cleanup
@@ -178,65 +304,109 @@ export default function App() {
     return () => clearInterval(interval)
   }, [])
 
-  const addThought = () => {
-    if (!thoughtText.trim()) return
+  // Update connection mode state for renderer
+  useEffect(() => {
+    stateRef.current.connectionModeActive = connectionMode.isActive
+    stateRef.current.connectionModePendingThought =
+      connectionMode.pendingThought
+    stateRef.current.connectionModePendingIndex =
+      connectionMode.pendingThoughtIndex
+  }, [
+    connectionMode.isActive,
+    connectionMode.pendingThought,
+    connectionMode.pendingThoughtIndex,
+  ])
 
-    const canvas = canvasRef.current
-    let targetX, targetY
+  // Multiplayer cursors update
+  useEffect(() => {
+    if (!multiplayerEnabled || !multiplayer.isConnected) return
+    stateRef.current.multiplayerUsers = multiplayer.getUsersWithCursors()
+  }, [multiplayerEnabled, multiplayer])
 
-    if (selectedZone) {
-      const zone = stateRef.current.zones.find((z) => z.id === selectedZone)
-      if (zone) {
-        // Place thought INSIDE the zone (random position within zone)
-        const angle = Math.random() * Math.PI * 2
-        const distance = Math.random() * (zone.radius - 50)
-        targetX = zone.x + Math.cos(angle) * distance
-        targetY = zone.y + Math.sin(angle) * distance
+  // Add thought function
+  const addThought = useCallback(
+    (textOverride = null) => {
+      const text = textOverride || thoughtText
+      if (!text.trim()) return
+
+      const canvas = canvasRef.current
+      let targetX, targetY
+
+      if (selectedZone) {
+        const zone = stateRef.current.zones.find((z) => z.id === selectedZone)
+        if (zone) {
+          const angle = Math.random() * Math.PI * 2
+          const distance = Math.random() * (zone.radius - 50)
+          targetX = zone.x + Math.cos(angle) * distance
+          targetY = zone.y + Math.sin(angle) * distance
+        }
+      } else {
+        targetX = canvas.width * 0.65
+        targetY = canvas.height * 0.5
       }
-    } else {
-      targetX = canvas.width * 0.65
-      targetY = canvas.height * 0.5
-    }
 
-    const newThought = createThought({
-      x: targetX,
-      y: targetY,
-      text: thoughtText,
-      zone: selectedZone ? ZONES.find((z) => z.id === selectedZone) : null,
-    })
+      const newThought = createThought({
+        x: targetX,
+        y: targetY,
+        text: text.trim(),
+        zone: selectedZone ? ZONES.find((z) => z.id === selectedZone) : null,
+      })
 
-    stateRef.current.thoughts.push(newThought)
-    setThoughtText('')
+      newThought.createdAt = Date.now()
+      stateRef.current.thoughts.push(newThought)
+      setThoughtText('')
 
-    // Celebration particles
-    for (let i = 0; i < 40; i++) {
-      stateRef.current.particles.push({
+      if (soundEnabled) soundEffects.thoughtAdded()
+
+      if (multiplayerEnabled && multiplayer.isConnected) {
+        multiplayer.broadcastThought(newThought)
+      }
+
+      // Celebration particles
+      for (let i = 0; i < 40; i++) {
+        stateRef.current.particles.push({
+          x: newThought.x,
+          y: newThought.y,
+          vx: (Math.random() - 0.5) * 10,
+          vy: (Math.random() - 0.5) * 10,
+          life: 1,
+          size: Math.random() * 8 + 4,
+          color: newThought.color,
+          glow: 1,
+        })
+      }
+
+      // Energy wave
+      stateRef.current.energyWaves.push({
         x: newThought.x,
         y: newThought.y,
-        vx: (Math.random() - 0.5) * 10,
-        vy: (Math.random() - 0.5) * 10,
-        life: 1,
-        size: Math.random() * 8 + 4,
+        radius: 20,
+        maxRadius: 400,
+        speed: 4,
+        alpha: 1,
         color: newThought.color,
-        glow: 1,
       })
-    }
 
-    // Energy wave
-    stateRef.current.energyWaves.push({
-      x: newThought.x,
-      y: newThought.y,
-      radius: 20,
-      maxRadius: 400,
-      speed: 4,
-      alpha: 1,
-      color: newThought.color,
-    })
+      setThoughtsCount(stateRef.current.thoughts.length)
+    },
+    [thoughtText, selectedZone, soundEnabled, multiplayerEnabled, multiplayer],
+  )
+
+  const addSuggestionAsThought = useCallback(
+    (suggestionText) => {
+      addThought(suggestionText)
+    },
+    [addThought],
+  )
+
+  const toggleSound = () => {
+    const newState = !soundEnabled
+    setSoundEnabled(newState)
+    soundEffects.setEnabled(newState)
   }
 
-  const toggleRunning = () => {
-    runningRef.current = !runningRef.current
-    setIsRunning(runningRef.current)
+  const toggleMultiplayer = () => {
+    setMultiplayerEnabled(!multiplayerEnabled)
   }
 
   const clearAll = () => {
@@ -244,15 +414,7 @@ export default function App() {
     stateRef.current.particles = []
     stateRef.current.connections = []
     stateRef.current.energyWaves = []
-  }
-
-  const saveState = () => {
-    const data = JSON.stringify({
-      thoughts: stateRef.current.thoughts,
-      connections: stateRef.current.connections,
-    })
-    localStorage.setItem('mindPalaceState', data)
-    alert('💾 State saved!')
+    setThoughtsCount(0)
   }
 
   const loadState = () => {
@@ -261,6 +423,8 @@ export default function App() {
       const parsed = JSON.parse(data)
       stateRef.current.thoughts = parsed.thoughts || []
       stateRef.current.connections = parsed.connections || []
+      if (parsed.sessionCount) setSessionCount(parsed.sessionCount)
+      setThoughtsCount(stateRef.current.thoughts.length)
       alert('✨ State loaded!')
     } else {
       alert('No saved state found')
@@ -279,22 +443,14 @@ export default function App() {
     stateRef.current.showConnections = !stateRef.current.showConnections
   }
 
-  const deleteThought = (thought) => {
-    const index = stateRef.current.thoughts.indexOf(thought)
-    if (index > -1) {
-      stateRef.current.thoughts.splice(index, 1)
-    }
-  }
-
   return (
     <div className="w-screen h-screen bg-[#0a0e1a] relative overflow-hidden">
-      {/* Canvas - NO scrollbars */}
       <div className="w-full h-full overflow-hidden">
         <canvas ref={canvasRef} className="block" />
       </div>
 
-      {/* UI Layer */}
       <div className="absolute inset-0 pointer-events-none">
+        {/* Control Panel */}
         <div className="pointer-events-auto">
           <ControlPanel
             show={showControls}
@@ -304,7 +460,7 @@ export default function App() {
             onClear={clearAll}
             thoughtText={thoughtText}
             setThoughtText={setThoughtText}
-            onAddThought={addThought}
+            onAddThought={() => addThought()}
             zones={ZONES}
             selectedZone={selectedZone}
             setSelectedZone={setSelectedZone}
@@ -312,6 +468,8 @@ export default function App() {
             onLoad={loadState}
             onExport={exportImage}
             onToggleConnections={toggleConnections}
+            soundEnabled={soundEnabled}
+            onToggleSound={toggleSound}
             zoom={zoom}
             onZoomIn={() => {
               const newZoom = Math.min(1.3, zoom + 0.1)
@@ -323,16 +481,79 @@ export default function App() {
               setZoom(newZoom)
               stateRef.current.camera.zoom = newZoom
             }}
+            multiplayerEnabled={multiplayerEnabled}
+            onToggleMultiplayer={toggleMultiplayer}
+            showSuggestions={showSuggestions}
+            onToggleSuggestions={() => setShowSuggestions(!showSuggestions)}
+            showAnalytics={showAnalytics}
+            onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
           />
         </div>
 
+        {/* Stats */}
         <div className="pointer-events-auto">
           <Stats
             thoughtsCount={thoughtsCount}
             particlesCount={particlesCount}
             zoom={zoom}
+            multiplayerEnabled={multiplayerEnabled}
+            userCount={multiplayer.userCount}
+            connectionStatus={multiplayer.connectionStatus}
           />
         </div>
+
+        {/* AI Suggestions Panel */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="pointer-events-auto">
+            <AiSuggestionsPanel
+              suggestions={suggestions}
+              onAddSuggestion={addSuggestionAsThought}
+              onClose={() => setShowSuggestions(false)}
+            />
+          </div>
+        )}
+
+        {/* Analytics Panel */}
+        {showAnalytics && analytics && (
+          <div className="pointer-events-auto">
+            <AnalyticsPanel
+              analytics={analytics}
+              onClose={() => setShowAnalytics(false)}
+            />
+          </div>
+        )}
+
+        {/* Multiplayer Status */}
+        {multiplayerEnabled && (
+          <div className="pointer-events-auto">
+            <MultiPlayerStatus
+              isConnected={multiplayer.isConnected}
+              connectionStatus={multiplayer.connectionStatus}
+              users={multiplayer.users}
+              userCount={multiplayer.userCount}
+            />
+          </div>
+        )}
+
+        {/* CONNECTION MODE UI - This is what was missing! */}
+        <div className="pointer-events-auto">
+          <ConnectionMode
+            isActive={connectionMode.isActive}
+            onToggle={connectionMode.toggleConnectionMode}
+            selectedThought={connectionMode.pendingThought}
+            connections={stateRef.current.connections || []}
+            pendingConnection={connectionMode.pendingThought}
+          />
+        </div>
+
+        {/* CONNECTION LABEL MODAL */}
+        <ConnectionLabelModal
+          isOpen={connectionMode.showLabelModal}
+          onClose={connectionMode.cancelLabelModal}
+          onSave={connectionMode.completeConnection}
+          connection={connectionMode.tempConnection}
+          thoughts={stateRef.current.thoughts}
+        />
       </div>
     </div>
   )
